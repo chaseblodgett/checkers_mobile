@@ -5,6 +5,7 @@ import numpy as np
 import random
 import time
 from copy import deepcopy
+import evaluation
 
 GameState = namedtuple('GameState', 'to_move, utility, board, moves, castling_rights, en_passant_square, moves_last_capture')
 
@@ -210,7 +211,7 @@ class Chess:
 
 
     def is_check(self, board, color, move):
-        """Returns True if `color` is in check *after* applying `move` to the board."""
+        """Returns True if `color` is in check after applying `move` to the board."""
 
         opponent_color = 'B' if color == 'W' else 'W'
         new_board = deepcopy(board)
@@ -274,7 +275,6 @@ class Chess:
         new_en_passant_square = None
         moves_last_capture = state.moves_last_capture
         (x1, y1), (x2, y2) = move
-
         piece = board[(x1, y1)]
 
         if piece[1] =='P' or board[(x2, y2)] is not None:
@@ -283,7 +283,6 @@ class Chess:
         board[(x1, y1)] = None
         board[(x2, y2)] = piece
 
-        
         # Check if pawn promotion (promote to queen by default)
         if piece[1] == 'P' and x2 == 8:
             board[(x2, y2)] = 'WQ'
@@ -296,32 +295,27 @@ class Chess:
             else:
                 board[(x2 - 1, y2)] = None
 
-
         if piece[1] == 'K' and abs(y2 - y1) == 2:
-            # King-side castling
-            if y1 > y2:
+            if y1 < y2:  # Queen-side castling
+                rook_start = (x1, 8)
+                rook_end = (x1, y2 - 1)
+            else:  # Queen-side castling
                 rook_start = (x1, 1)
                 rook_end = (x1, y2 + 1)
-            # Queen-side castling
-            else:
-                rook_start = (x1, 1)
-                rook_end = (x1, y2 - 1)
+
 
             rook_piece = board.get(rook_start)
             board[rook_start] = None
             board[rook_end] = rook_piece
 
         if piece[1] == 'K':
-            print("King moved for ", piece[0])
             new_castling_rights[piece[0]]['Q'] = False
             new_castling_rights[piece[0]]['K'] = False
         
         if piece[1] == 'R' and y1 == 1:
-            print("Kingside rook moved for ", piece[0])
             new_castling_rights[piece[0]]['K'] = False
         
         if piece[1] == 'R' and y1 == 8:
-            print("Queenside rook moved for ", piece[0])
             new_castling_rights[piece[0]]['Q'] = False
 
         if piece[1] == 'P' and abs(x2-x1) == 2:
@@ -330,7 +324,7 @@ class Chess:
             else:
                 new_en_passant_square = (x2+1,y2)
         
-        next_player = 'W' if state.to_move == 'B' else 'B'
+        next_player = 'B' if state.to_move == 'W' else 'W'
         moves_last_capture += 1
         moves = []
         for (x, y), piece in board.items():
@@ -357,10 +351,10 @@ class Chess:
         if state.moves_last_capture >= 50:
             return True
         
-        current_player = self.to_move(state)
+        current_player = state.to_move
 
         for (x, y), piece in state.board.items():
-            if piece and current_player in piece:
+            if piece and current_player == piece[0]:
                 possible_moves = self.get_moves(state.board, (x, y), piece, state.castling_rights, state.en_passant_square)
                 if possible_moves:
                     return False
@@ -560,39 +554,15 @@ def random_player(game, state):
 
     return random.choice(valid_moves) if valid_moves else None
 
-def count_pieces_eval_white(state):
-    eval = 0
-    for row in range(1, 9):
-        for col in range(1, 9):
-            piece = state.board.get((row, col))
-            if piece == "WP":
-                eval += 0.01
-            elif piece == "WR":
-                eval += 0.05
-            elif piece == "WB":
-                eval += 0.031
-            elif piece == "WN":
-                eval += 0.03
-            elif piece == "WQ":
-                eval += 0.09
-            elif piece == "WK":
-                eval += 0.15
-            elif piece == "BP":
-                eval -= 0.01
-            elif piece == "BR":
-                eval -= 0.05
-            elif piece == "BB":
-                eval -= 0.031
-            elif piece == "BN":
-                eval -= 0.03
-            elif piece == "BQ":
-                eval -= 0.09
-            elif piece == "BK":
-                eval -= 0.15
-    return eval
 
-def count_pieces_white_d3(game, state):
-    return alpha_beta_cutoff_search(state, game, d=1, eval_fn=count_pieces_eval_white)
+def medium(game, state):
+    return alpha_beta_cutoff_search(state, game, d=1, eval_fn=evaluation.evaluate_board)
+
+def hard(game, state):
+    return alpha_beta_cutoff_search(state, game, d=1, eval_fn=evaluation.evaluate_board_with_check)
+
+def impossible(game, state):
+    return alpha_beta_cutoff_search(state, game, d=2, eval_fn=evaluation.evaluate_board_with_check)
 
 def tournament(x_players, o_players, game_class, num_rounds=1, timeout=30):
     """

@@ -16,7 +16,9 @@ ai_bots = {
 
 chess_ai_bots = {
     'Easy' : chess.random_player,
-    'Medium' : chess.count_pieces_white_d3
+    'Medium' : chess.medium,
+    'Hard' : chess.hard,
+    'Impossible' : chess.impossible
 }
 
 @app.route('/api/makeMove', methods=['POST'])
@@ -145,8 +147,10 @@ def make_chess_move():
         }
         for ((x, y), possible_moves) in new_state.moves
     ]
-    print(new_state.castling_rights)
-    print(new_state.moves_last_capture)
+    
+    
+    print(game.terminal_test(new_state))
+    print(game.utility(new_state, game.to_move(new_state)))
     return jsonify({
         'board': board_array,
         'to_move': game.to_move(new_state),

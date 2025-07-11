@@ -131,6 +131,7 @@ class Checkers:
         """Return the state that results from making a move from a state."""
         board = state.board.copy()
         (x1, y1), (x2, y2) = move
+        print("Turn: ", state.to_move)
 
         ## Move piece to new square and remove it from old square
         piece = board[(x1, y1)]
